@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Maze Race</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid black;
+            margin-top: 20px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Multiplayer Maze Race</h1>
+    <canvas id="gameCanvas"></canvas>
+    <br>
+    <button onclick="startGame()">Restart Game</button>
+    
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        
+        const CELL_SIZE = 50;
+        const ROWS = 10;
+        const COLS = 10;
+        const WIDTH = CELL_SIZE * COLS;
+        const HEIGHT = CELL_SIZE * ROWS;
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+        
+        const COLORS = { WALL: "black", PATH: "white", PLAYER1: "red", PLAYER2: "blue", GOAL: "yellow" };
+        
+        class DisjointSet {
+            constructor() {
+                this.parent = {};
+            }
+            find(cell) {
+                if (this.parent[cell] !== cell) {
+                    this.parent[cell] = this.find(this.parent[cell]);
+                }
+                return this.parent[cell];
+            }
+            union(cell1, cell2) {
+                let root1 = this.find(cell1);
+                let root2 = this.find(cell2);
+                if (root1 !== root2) {
+                    this.parent[root2] = root1;
+                }
+            }
+        }
+        
+        function generateMaze() {
+            const ds = new DisjointSet();
+            let walls = [];
+            let maze = new Set();
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    ds.parent[`${r},${c}`] = `${r},${c}`;
+                    if (r < ROWS - 1) walls.push([[r, c], [r + 1, c]]);
+                    if (c < COLS - 1) walls.push([[r, c], [r, c + 1]]);
+                }
+            }
+            
+            walls.sort(() => Math.random() - 0.5);
+            
+            for (let [cell1, cell2] of walls) {
+                if (ds.find(`${cell1}`) !== ds.find(`${cell2}`)) {
+                    ds.union(`${cell1}`, `${cell2}`);
+                    maze.add(`${cell1}-${cell2}`);
+                    maze.add(`${cell2}-${cell1}`);
+                }
+            }
+            return maze;
+        }
+        
+        let maze, player1, player2, goal;
+        
+        function startGame() {
+            maze = generateMaze();
+            player1 = { row: 0, col: 0, color: COLORS.PLAYER1 };
+            player2 = { row: 0, col: COLS - 1, color: COLORS.PLAYER2 };
+            goal = { row: ROWS - 1, col: Math.floor(COLS / 2), color: COLORS.GOAL };
+            drawGame();
+        }
+        
+        function drawGame() {
+            ctx.fillStyle = COLORS.PATH;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (!maze.has(`${r},${c}-${r},${c + 1}`) && c < COLS - 1) {
+                        ctx.strokeStyle = COLORS.WALL;
+                        ctx.beginPath();
+                        ctx.moveTo((c + 1) * CELL_SIZE, r * CELL_SIZE);
+                        ctx.lineTo((c + 1) * CELL_SIZE, (r + 1) * CELL_SIZE);
+                        ctx.stroke();
+                    }
+                    if (!maze.has(`${r},${c}-${r + 1},${c}`) && r < ROWS - 1) {
+                        ctx.strokeStyle = COLORS.WALL;
+                        ctx.beginPath();
+                        ctx.moveTo(c * CELL_SIZE, (r + 1) * CELL_SIZE);
+                        ctx.lineTo((c + 1) * CELL_SIZE, (r + 1) * CELL_SIZE);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            ctx.fillStyle = goal.color;
+            ctx.fillRect(goal.col * CELL_SIZE, goal.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            
+            ctx.fillStyle = player1.color;
+            ctx.fillRect(player1.col * CELL_SIZE, player1.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            
+            ctx.fillStyle = player2.color;
+            ctx.fillRect(player2.col * CELL_SIZE, player2.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+        
+        document.addEventListener("keydown", (event) => {
+            let move1 = { row: player1.row, col: player1.col };
+            let move2 = { row: player2.row, col: player2.col };
+            
+            if (event.key === "ArrowUp") move1.row--;
+            if (event.key === "ArrowDown") move1.row++;
+            if (event.key === "ArrowLeft") move1.col--;
+            if (event.key === "ArrowRight") move1.col++;
+            
+            if (event.key === "w") move2.row--;
+            if (event.key === "s") move2.row++;
+            if (event.key === "a") move2.col--;
+            if (event.key === "d") move2.col++;
+            
+            if (maze.has(`${player1.row},${player1.col}-${move1.row},${move1.col}`)) {
+                player1.row = move1.row;
+                player1.col = move1.col;
+            }
+            if (maze.has(`${player2.row},${player2.col}-${move2.row},${move2.col}`)) {
+                player2.row = move2.row;
+                player2.col = move2.col;
+            }
+            
+            if (player1.row === goal.row && player1.col === goal.col) {
+                alert("Player 1 Wins!");
+                startGame();
+            }
+            if (player2.row === goal.row && player2.col === goal.col) {
+                alert("Player 2 Wins!");
+                startGame();
+            }
+            drawGame();
+        });
+        
+        startGame();
+    </script>
+</body>
+</html>
