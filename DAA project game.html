@@ -1,167 +1,146 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Maze Race</title>
-    <style>
-        body {
-            text-align: center;
-            font-family: Arial, sans-serif;
-        }
-        canvas {
-            border: 2px solid black;
-            margin-top: 20px;
-        }
-        button {
-            margin-top: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Multiplayer Maze Race</h1>
-    <canvas id="gameCanvas"></canvas>
-    <br>
-    <button onclick="startGame()">Restart Game</button>
-    
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        
-        const CELL_SIZE = 50;
-        const ROWS = 10;
-        const COLS = 10;
-        const WIDTH = CELL_SIZE * COLS;
-        const HEIGHT = CELL_SIZE * ROWS;
-        canvas.width = WIDTH;
-        canvas.height = HEIGHT;
-        
-        const COLORS = { WALL: "black", PATH: "white", PLAYER1: "red", PLAYER2: "blue", GOAL: "yellow" };
-        
-        class DisjointSet {
-            constructor() {
-                this.parent = {};
-            }
-            find(cell) {
-                if (this.parent[cell] !== cell) {
-                    this.parent[cell] = this.find(this.parent[cell]);
-                }
-                return this.parent[cell];
-            }
-            union(cell1, cell2) {
-                let root1 = this.find(cell1);
-                let root2 = this.find(cell2);
-                if (root1 !== root2) {
-                    this.parent[root2] = root1;
-                }
-            }
-        }
-        
-        function generateMaze() {
-            const ds = new DisjointSet();
-            let walls = [];
-            let maze = new Set();
-            
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    ds.parent[`${r},${c}`] = `${r},${c}`;
-                    if (r < ROWS - 1) walls.push([[r, c], [r + 1, c]]);
-                    if (c < COLS - 1) walls.push([[r, c], [r, c + 1]]);
-                }
-            }
-            
-            walls.sort(() => Math.random() - 0.5);
-            
-            for (let [cell1, cell2] of walls) {
-                if (ds.find(`${cell1}`) !== ds.find(`${cell2}`)) {
-                    ds.union(`${cell1}`, `${cell2}`);
-                    maze.add(`${cell1}-${cell2}`);
-                    maze.add(`${cell2}-${cell1}`);
-                }
-            }
-            return maze;
-        }
-        
-        let maze, player1, player2, goal;
-        
-        function startGame() {
-            maze = generateMaze();
-            player1 = { row: 0, col: 0, color: COLORS.PLAYER1 };
-            player2 = { row: 0, col: COLS - 1, color: COLORS.PLAYER2 };
-            goal = { row: ROWS - 1, col: Math.floor(COLS / 2), color: COLORS.GOAL };
-            drawGame();
-        }
-        
-        function drawGame() {
-            ctx.fillStyle = COLORS.PATH;
-            ctx.fillRect(0, 0, WIDTH, HEIGHT);
-            
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    if (!maze.has(`${r},${c}-${r},${c + 1}`) && c < COLS - 1) {
-                        ctx.strokeStyle = COLORS.WALL;
-                        ctx.beginPath();
-                        ctx.moveTo((c + 1) * CELL_SIZE, r * CELL_SIZE);
-                        ctx.lineTo((c + 1) * CELL_SIZE, (r + 1) * CELL_SIZE);
-                        ctx.stroke();
-                    }
-                    if (!maze.has(`${r},${c}-${r + 1},${c}`) && r < ROWS - 1) {
-                        ctx.strokeStyle = COLORS.WALL;
-                        ctx.beginPath();
-                        ctx.moveTo(c * CELL_SIZE, (r + 1) * CELL_SIZE);
-                        ctx.lineTo((c + 1) * CELL_SIZE, (r + 1) * CELL_SIZE);
-                        ctx.stroke();
-                    }
-                }
-            }
-            
-            ctx.fillStyle = goal.color;
-            ctx.fillRect(goal.col * CELL_SIZE, goal.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            
-            ctx.fillStyle = player1.color;
-            ctx.fillRect(player1.col * CELL_SIZE, player1.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            
-            ctx.fillStyle = player2.color;
-            ctx.fillRect(player2.col * CELL_SIZE, player2.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-        
-        document.addEventListener("keydown", (event) => {
-            let move1 = { row: player1.row, col: player1.col };
-            let move2 = { row: player2.row, col: player2.col };
-            
-            if (event.key === "ArrowUp") move1.row--;
-            if (event.key === "ArrowDown") move1.row++;
-            if (event.key === "ArrowLeft") move1.col--;
-            if (event.key === "ArrowRight") move1.col++;
-            
-            if (event.key === "w") move2.row--;
-            if (event.key === "s") move2.row++;
-            if (event.key === "a") move2.col--;
-            if (event.key === "d") move2.col++;
-            
-            if (maze.has(`${player1.row},${player1.col}-${move1.row},${move1.col}`)) {
-                player1.row = move1.row;
-                player1.col = move1.col;
-            }
-            if (maze.has(`${player2.row},${player2.col}-${move2.row},${move2.col}`)) {
-                player2.row = move2.row;
-                player2.col = move2.col;
-            }
-            
-            if (player1.row === goal.row && player1.col === goal.col) {
-                alert("Player 1 Wins!");
-                startGame();
-            }
-            if (player2.row === goal.row && player2.col === goal.col) {
-                alert("Player 2 Wins!");
-                startGame();
-            }
-            drawGame();
-        });
-        
-        startGame();
-    </script>
-</body>
-</html>
+import tkinter as tk
+from tkinter import messagebox
+import random
+
+CELL_SIZE = 50
+ROWS = 10
+COLS = 10
+WIDTH = CELL_SIZE * COLS
+HEIGHT = CELL_SIZE * ROWS
+
+COLORS = {
+    "WALL": "black",
+    "PATH": "#e0e0e0",
+    "PLAYER1": "red",
+    "PLAYER2": "blue",
+    "GOAL": "yellow"
+}
+
+class DisjointSet:
+    def __init__(self):
+        self.parent = {}
+
+    def find(self, cell):
+        if self.parent[cell] != cell:
+            self.parent[cell] = self.find(self.parent[cell])
+        return self.parent[cell]
+
+    def union(self, cell1, cell2):
+        root1 = self.find(cell1)
+        root2 = self.find(cell2)
+        if root1 != root2:
+            self.parent[root2] = root1
+
+class MazeGame:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Multiplayer Maze Race")
+        self.canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT, bg=COLORS["WALL"])
+        self.canvas.pack()
+        self.restart_button = tk.Button(root, text="Restart Game", command=self.start_game)
+        self.restart_button.pack(pady=10)
+        self.root.bind("<Key>", self.key_pressed)
+        self.start_game()
+
+    def generate_maze(self):
+        ds = DisjointSet()
+        walls = []
+        self.passages = set()
+
+        for r in range(ROWS):
+            for c in range(COLS):
+                ds.parent[(r, c)] = (r, c)
+                if r < ROWS - 1:
+                    walls.append(((r, c), (r + 1, c)))
+                if c < COLS - 1:
+                    walls.append(((r, c), (r, c + 1)))
+
+        random.shuffle(walls)
+
+        for cell1, cell2 in walls:
+            if ds.find(cell1) != ds.find(cell2):
+                ds.union(cell1, cell2)
+                self.passages.add((cell1, cell2))
+                self.passages.add((cell2, cell1))
+
+    def draw_game(self):
+        self.canvas.delete("all")
+
+        for r in range(ROWS):
+            for c in range(COLS):
+                x1 = c * CELL_SIZE
+                y1 = r * CELL_SIZE
+                x2 = x1 + CELL_SIZE
+                y2 = y1 + CELL_SIZE
+
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=COLORS["PATH"], outline="")
+
+                if c < COLS - 1 and ((r, c), (r, c + 1)) not in self.passages:
+                    self.canvas.create_rectangle(x2 - 2, y1, x2 + 2, y2, fill=COLORS["WALL"], width=0)
+
+                if r < ROWS - 1 and ((r, c), (r + 1, c)) not in self.passages:
+                    self.canvas.create_rectangle(x1, y2 - 2, x2, y2 + 2, fill=COLORS["WALL"], width=0)
+
+        self.draw_cell(self.goal, COLORS["GOAL"])
+        self.draw_cell(self.player1, COLORS["PLAYER1"])
+        self.draw_cell(self.player2, COLORS["PLAYER2"])
+
+    def draw_cell(self, player, color):
+        x1 = player["col"] * CELL_SIZE
+        y1 = player["row"] * CELL_SIZE
+        x2 = x1 + CELL_SIZE
+        y2 = y1 + CELL_SIZE
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill=color)
+
+    def start_game(self):
+        self.generate_maze()
+        self.player1 = {"row": 0, "col": 0}
+        self.player2 = {"row": 0, "col": COLS - 1}
+        self.goal = {"row": ROWS - 1, "col": COLS // 2}
+        self.draw_game()
+
+    def move_if_possible(self, player, new_pos):
+        current = (player["row"], player["col"])
+        if (current, new_pos) in self.passages:
+            player["row"], player["col"] = new_pos
+
+    def key_pressed(self, event):
+        move1 = (self.player1["row"], self.player1["col"])
+        move2 = (self.player2["row"], self.player2["col"])
+
+        if event.keysym == "Up":
+            move1 = (move1[0] - 1, move1[1])
+        elif event.keysym == "Down":
+            move1 = (move1[0] + 1, move1[1])
+        elif event.keysym == "Left":
+            move1 = (move1[0], move1[1] - 1)
+        elif event.keysym == "Right":
+            move1 = (move1[0], move1[1] + 1)
+
+        elif event.keysym == "w":
+            move2 = (move2[0] - 1, move2[1])
+        elif event.keysym == "s":
+            move2 = (move2[0] + 1, move2[1])
+        elif event.keysym == "a":
+            move2 = (move2[0], move2[1] - 1)
+        elif event.keysym == "d":
+            move2 = (move2[0], move2[1] + 1)
+
+        if 0 <= move1[0] < ROWS and 0 <= move1[1] < COLS:
+            self.move_if_possible(self.player1, move1)
+        if 0 <= move2[0] < ROWS and 0 <= move2[1] < COLS:
+            self.move_if_possible(self.player2, move2)
+
+        if (self.player1["row"], self.player1["col"]) == (self.goal["row"], self.goal["col"]):
+            messagebox.showinfo("Game Over", "Player 1 Wins!")
+            self.start_game()
+        elif (self.player2["row"], self.player2["col"]) == (self.goal["row"], self.goal["col"]):
+            messagebox.showinfo("Game Over", "Player 2 Wins!")
+            self.start_game()
+
+        self.draw_game()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    game = MazeGame(root)
+    root.mainloop()
